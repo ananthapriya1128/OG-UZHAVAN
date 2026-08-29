@@ -6,8 +6,8 @@
  * seamless offline intent engine fallback.
  */
 
-const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY || "";
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+// Dynamic API key getter to support environment variable updates
+const getApiKey = () => import.meta.env?.VITE_GEMINI_API_KEY || "";
 
 const SYSTEM_PROMPT = `
 You are "பேசும் உழவன் AI" (Talking Uzhavan AI), the official agricultural procurement virtual mentor for Tamil Nadu Civil Supplies Corporation (TNCSC) Direct Paddy Procurement (DPC).
@@ -121,13 +121,15 @@ function getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken 
  * Primary function to query Gemini API or fallback
  */
 export async function queryAIMentor({ query, lang = "ta", farmer = null, booking = null, servingToken = 42, mspRates = {} }) {
-  if (!GEMINI_API_KEY) {
-    console.info("[AI Mentor] VITE_GEMINI_API_KEY not configured. Using local intelligent intent engine.");
+  const apiKey = getApiKey();
+  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
+    console.info("[AI Mentor] VITE_GEMINI_API_KEY not configured or using default placeholder. Using local intelligent intent engine.");
     const intent = detectLocalIntent(query, lang);
     return getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken });
   }
 
   try {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const contextPrompt = `
 Farmer context:
 - Name: ${farmer?.name || "Farmer"}
@@ -156,7 +158,7 @@ User input query: "${query}"
       }
     };
 
-    const res = await fetch(GEMINI_ENDPOINT, {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
