@@ -2,42 +2,60 @@
  * AI Mentor Service for OG Uzhavan — Powered by Gemini AI
  * 
  * Provides intelligent, context-aware agricultural procurement guidance
- * in Tamil, English, Hindi, and Telugu. Supports Gemini REST API with 
- * seamless offline intent engine fallback.
+ * & deep Paddy Rate Analysis (MSP, TN Government Incentive, Moisture Deduction,
+ * Net Payout per 40kg bag & Quintal) in Tamil, English, Hindi, and Telugu.
  */
 
-// Dynamic API key getter to support environment variable updates
 const getApiKey = () => import.meta.env?.VITE_GEMINI_API_KEY || "";
 
 const SYSTEM_PROMPT = `
-You are "பேசும் உழவன் AI" (Talking Uzhavan AI), the official agricultural procurement virtual mentor for Tamil Nadu Civil Supplies Corporation (TNCSC) Direct Paddy Procurement (DPC).
+You are "பேசும் உழவன் AI" (Talking Uzhavan AI), the official expert Paddy Rate Analyst and Agricultural Procurement Mentor for Tamil Nadu Civil Supplies Corporation (TNCSC) Direct Paddy Procurement (DPC).
 
-Rules:
-1. Answer concisely in 2 to 3 friendly sentences suitable for text-to-speech voice output.
-2. Respond strictly in the requested language code (ta: Tamil, en: English, hi: Hindi, te: Telugu). Use natural vernacular spoken Tamil phrasing when language is Tamil.
-3. Help paddy farmers with token status, slot booking, MSP rates, moisture guidelines (17% max limit), payment/DBT status, and grievance redressal.
+Knowledge Base & Rate Analysis (2025-2026 Tamil Nadu Paddy Procurement):
+1. Fine / Grade-A Paddy (White Ponni, Co 51, CR 1009):
+   - Central MSP: ₹2,203 per quintal (₹881.20 per 40kg bag)
+   - TN Government Bonus Incentive: ₹107 per quintal
+   - Total Effective Price: ₹2,310 per quintal (₹924 per 40kg bag)
+
+2. Common Variety Paddy (Aduthurai, Kuzha Paddy):
+   - Central MSP: ₹2,183 per quintal (₹873.20 per 40kg bag)
+   - TN Government Bonus Incentive: ₹82 per quintal
+   - Total Effective Price: ₹2,265 per quintal (₹906 per 40kg bag)
+
+3. Moisture & Quality Deduction Analysis:
+   - Permissible Moisture Limit: Up to 17% (Zero deduction/full payout).
+   - Moisture 17% - 20%: Subject to drying at DPC campus or weight adjustment per TNCSC slab.
+   - Foreign Matter / Refuse limit: Max 1% un-milled husk allowed.
+
+4. Direct Benefit Transfer (DBT):
+   - Direct bank credit into Aadhaar-seeded bank account within 48 hours of weighbridge receipt.
+
+Instructions:
+1. Provide concise, friendly, and highly accurate analysis suitable for voice output (2 to 3 sentences max).
+2. Use requested language code (ta: Tamil, en: English, hi: Hindi, te: Telugu). In Tamil, use warm, respectful spoken Tamil phrasing.
+3. If the user asks about paddy rates, price analysis, bag prices, moisture deduction, or estimated earnings, provide exact price breakdowns.
 4. Output valid JSON in this exact format:
 {
-  "text": "Your spoken response text here",
-  "actionRoute": "/farmer/token" or "/farmer/booking" or "/farmer/msp" or "/farmer/grievance" or "/farmer/queue" or null
+  "text": "Your accurate response and rate analysis text here",
+  "actionRoute": "/farmer/msp" or "/farmer/token" or "/farmer/booking" or "/farmer/grievance" or "/farmer/queue" or null
 }
 `;
 
-// Local intent detection engine (Offline fallback)
-function detectLocalIntent(text, lang) {
+// Local intent & paddy rate analysis engine (Offline fallback)
+function detectLocalIntent(text) {
   const t = (text || "").toLowerCase();
 
+  if (t.includes("விலை") || t.includes("ரேட்") || t.includes("rate") || t.includes("msp") || t.includes("price") || t.includes("குவிண்டால்") || t.includes("பணம் எவ்வளவு") || t.includes("மூட்டை") || t.includes("bag") || t.includes("பகுப்பாய்வு") || t.includes("analysis")) {
+    return "check_msp_analysis";
+  }
+  if (t.includes("ஈரப்பதம்") || t.includes("moisture") || t.includes("மழை") || t.includes("கழிவு")) {
+    return "check_moisture_analysis";
+  }
   if (t.includes("டோக்கன்") || t.includes("token") || t.includes("வரிசை") || t.includes("நிலை") || t.includes("status") || t.includes("queue") || t.includes("my turn")) {
     return "check_token";
   }
-  if (t.includes("விலை") || t.includes("ரேட்") || t.includes("rate") || t.includes("msp") || t.includes("price") || t.includes("குவிண்டால்")) {
-    return "check_msp";
-  }
   if (t.includes("பணம்") || t.includes("வரவு") || t.includes("payment") || t.includes("வங்கி") || t.includes("dbt") || t.includes("bank")) {
     return "check_payment";
-  }
-  if (t.includes("மழை") || t.includes("வானிலை") || t.includes("ஈரப்பதம்") || t.includes("weather") || t.includes("rain") || t.includes("moisture")) {
-    return "check_weather";
   }
   if (t.includes("புக்") || t.includes("பதிவு") || t.includes("slot") || t.includes("book") || t.includes("booking") || t.includes("இடம்")) {
     return "book_slot";
@@ -56,12 +74,26 @@ function getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken 
   let actionRoute = null;
 
   switch (intent) {
+    case "check_msp_analysis":
+      text = lang === "ta"
+        ? "தமிழ்நாடு நெல் கொள்முதல் பகுப்பாய்வு: சன்ன ரகம் (வெள்ளை பொன்னி) MSP ₹2,203 + தமிழக அரசின் ஊக்கத்தொகை ₹107 சேர்த்து குவிண்டாலுக்கு ₹2,310 (40 கிலோ மூட்டை ₹924). சாதாரண ரகம் குவிண்டாலுக்கு ₹2,265 (மூட்டை ₹906). 17% ஈரப்பதத்திற்குள் முழுத் தொகையும் 48 மணி நேரத்தில் வங்கிக்கு வரும்."
+        : "TN Paddy Rate Analysis: Grade-A (White Ponni) MSP ₹2,203 + TN Govt Bonus ₹107 = ₹2,310/qtl (₹924 per 40kg bag). Common variety is ₹2,265/qtl (₹906 per 40kg bag). Zero deduction if moisture is under 17%.";
+      actionRoute = "/farmer/msp";
+      break;
+
+    case "check_moisture_analysis":
+      text = lang === "ta"
+        ? "ஈரப்பதம் பகுப்பாய்வு: 17% ஈரப்பதம் வரை எடைக் கழிவு கிடையாது, முழு MSP விலை வழங்கப்படும். 17% முதல் 20% வரை இருந்தால் DPC வளாகத்தில் உணர்த்திய பின்னரே கொள்முதல் செய்யப்படும்."
+        : "Moisture Analysis: Up to 17% moisture gets zero weight deduction and full MSP rate. Paddy with 17%-20% moisture must be dried at DPC before procurement.";
+      actionRoute = "/farmer/msp";
+      break;
+
     case "check_token":
       if (curBooking) {
         const ahead = Math.max(0, curBooking.tokenNumber - serving);
         text = lang === "ta"
-          ? `வணக்கம்! உங்கள் டோக்கன் எண் #${curBooking.tokenNumber}. மையம்: ${curBooking.dpcName}. தற்போது #${serving} அழைக்கப்படுகிறது. உங்களுக்கு முன் ${ahead} விவசாயிகள் உள்ளனர்.`
-          : `Hello! Your token number is #${curBooking.tokenNumber} at ${curBooking.dpcName}. Currently token #${serving} is serving. There are ${ahead} farmers ahead of you.`;
+          ? `வணக்கம்! உங்கள் டோக்கன் எண் #${curBooking.tokenNumber} (${curBooking.dpcName}). தற்போது #${serving} அழைக்கப்படுகிறது. உங்களுக்கு முன் ${ahead} விவசாயிகள் உள்ளனர்.`
+          : `Hello! Your token number is #${curBooking.tokenNumber} at ${curBooking.dpcName}. Currently token #${serving} is serving (${ahead} farmers ahead).`;
         actionRoute = "/farmer/token";
       } else {
         text = lang === "ta"
@@ -71,25 +103,11 @@ function getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken 
       }
       break;
 
-    case "check_msp":
-      text = lang === "ta"
-        ? "இன்றைய தமிழ்நாடு அரசு நேரடி நெல் கொள்முதல் விலை: வெள்ளை பொன்னி குவிண்டாலுக்கு ₹2,183, தரம் ஏ ரகம் குவிண்டாலுக்கு ₹2,203 ஆகும். ஈரப்பதம் 17% வரை அனுமதிக்கப்படும்."
-        : "Today's TN Government Paddy MSP: White Ponni at ₹2,183/qtl, Grade-A at ₹2,203/qtl. Maximum moisture limit is 17%.";
-      actionRoute = "/farmer/msp";
-      break;
-
     case "check_payment":
       text = lang === "ta"
-        ? "நெல் கொள்முதல் முடிந்த 48 மணி நேரத்திற்குள் DBT மூலம் உங்கள் ஆதார் இணைக்கப்பட்ட வங்கிக் கணக்கிற்கு பணம் நேரடியாக வரவு வைக்கப்படும்."
-        : "Payment will be credited directly to your Aadhaar-linked bank account via DBT within 48 hours of procurement.";
+        ? "கொள்முதல் பகுப்பாய்வு: நெல் எடைபோட்டு DPC சீட்டு வழங்கப்பட்ட 48 மணி நேரத்திற்குள் DBT மூலம் உங்கள் ஆதார் இணைக்கப்பட்ட வங்கிக் கணக்கிற்கு பணம் நேரடி வரவு செய்யப்படும்."
+        : "Payment Analysis: Funds will be directly credited to your Aadhaar-linked bank account via DBT within 48 hours of weighment at DPC.";
       actionRoute = "/farmer";
-      break;
-
-    case "check_weather":
-      text = lang === "ta"
-        ? "காவிரி டெல்டா மண்டலத்தில் இன்று வானிலை தெளிவாக உள்ளது. உங்கள் நெல்லின் ஈரப்பதம் 17% க்குள் இருப்பதை உறுதி செய்து DPC-க்கு கொண்டு வாருங்கள்."
-        : "Weather in Cauvery Delta is clear today. Ensure your paddy moisture is under 17% before bringing it to DPC.";
-      actionRoute = null;
       break;
 
     case "book_slot":
@@ -108,8 +126,8 @@ function getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken 
 
     default:
       text = lang === "ta"
-        ? "வணக்கம்! நான் உங்களின் உழவர் உதவி AI. டோக்கன் எண், இன்றைய விலை, அல்லது முன்பதிவு பற்றி என்னிடம் கேட்கலாம்."
-        : "Hello! I am your Uzhavan AI Assistant. Ask me about your token status, MSP prices, slot booking, or grievances.";
+        ? "வணக்கம்! நான் உங்களின் நெல் கொள்முதல் பகுப்பாய்வு AI. நெல் விலை, மூட்டை மதிப்பு, ஈரப்பதம் கழிவு அல்லது டோக்கன் நிலை பற்றி என்னிடம் கேட்கலாம்."
+        : "Hello! I am your Paddy Procurement AI Analyst. Ask me about paddy rates per bag, moisture rules, token status, or booking.";
       actionRoute = null;
       break;
   }
@@ -122,23 +140,24 @@ function getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken 
  */
 export async function queryAIMentor({ query, lang = "ta", farmer = null, booking = null, servingToken = 42, mspRates = {} }) {
   const apiKey = getApiKey();
-  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
-    console.info("[AI Mentor] VITE_GEMINI_API_KEY not configured or using default placeholder. Using local intelligent intent engine.");
-    const intent = detectLocalIntent(query, lang);
+  const isDefaultKey = !apiKey || apiKey.includes("YOUR_GEMINI_API_KEY") || !apiKey.startsWith("AIzaSy");
+
+  if (isDefaultKey) {
+    console.info("[AI Mentor] Active API Key is in offline fallback mode. Providing intelligent rate analysis response.");
+    const intent = detectLocalIntent(query);
     return getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken });
   }
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const contextPrompt = `
-Farmer context:
+Farmer Context:
 - Name: ${farmer?.name || "Farmer"}
-- Mobile: ${farmer?.mobile || "N/A"}
 - Active Booking: ${booking ? `Token #${booking.tokenNumber} at ${booking.dpcName}, Date: ${booking.slotDate}` : "None"}
 - Current Serving Token at DPC: #${servingToken}
-- Language: ${lang} (ta=Tamil, en=English, hi=Hindi, te=Telugu)
+- Selected Language: ${lang} (ta=Tamil, en=English, hi=Hindi, te=Telugu)
 
-User input query: "${query}"
+Farmer Query: "${query}"
 `;
 
     const payload = {
@@ -152,9 +171,8 @@ User input query: "${query}"
         }
       ],
       generationConfig: {
-        temperature: 0.3,
+        temperature: 0.2,
         maxOutputTokens: 256,
-        responseMimeType: "application/json"
       }
     };
 
@@ -165,25 +183,44 @@ User input query: "${query}"
     });
 
     if (!res.ok) {
-      throw new Error(`Gemini API returned status ${res.status}`);
+      const errBody = await res.text();
+      throw new Error(`Gemini API HTTP ${res.status}: ${errBody}`);
     }
 
     const data = await res.json();
-    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
-    if (!candidateText) {
-      throw new Error("Invalid response structure from Gemini API");
+    if (!rawText) {
+      throw new Error("Empty response content from Gemini API");
     }
 
-    const parsed = JSON.parse(candidateText);
+    // Parse JSON or extract response cleanly
+    let text = "";
+    let actionRoute = null;
+
+    try {
+      const jsonStart = rawText.indexOf("{");
+      const jsonEnd = rawText.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        const jsonStr = rawText.substring(jsonStart, jsonEnd + 1);
+        const parsed = JSON.parse(jsonStr);
+        text = parsed.text;
+        actionRoute = parsed.actionRoute;
+      } else {
+        text = rawText;
+      }
+    } catch {
+      text = rawText.replace(/[\{\}\"]/g, "").trim();
+    }
+
     return {
-      text: parsed.text || "மன்னிக்கவும், மீண்டும் முயற்சிக்கவும்.",
-      actionRoute: parsed.actionRoute || null
+      text: text || "தமிழ்நாடு நெல் கொள்முதல் விலை பகுப்பாய்வு: வெள்ளை பொன்னி மூட்டை ₹924 (குவிண்டால் ₹2,310). ஈரப்பதம் 17% வரை அனுமதிக்கப்படும்.",
+      actionRoute: actionRoute || null
     };
 
   } catch (err) {
-    console.warn("[AI Mentor] Gemini API error, falling back to local engine:", err.message);
-    const intent = detectLocalIntent(query, lang);
+    console.warn("[AI Mentor] Gemini API call note (using fallback):", err.message);
+    const intent = detectLocalIntent(query);
     return getLocalFallbackResponse({ intent, lang, farmer, booking, servingToken });
   }
 }

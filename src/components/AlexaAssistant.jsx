@@ -212,13 +212,14 @@ export default function AlexaAssistant({ open, onClose }) {
           <span style={{ fontSize: 38 }}>{phase === "listening" ? "⏹" : "🎤"}</span>
         </button>
 
-        {/* Interactive Tamil Voice Prompts */}
+        {/* Interactive Tamil Voice Prompts including Paddy Rate Analysis */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
           {[
+            { q: "நெல் விலை பகுப்பாய்வு என்ன?", icon: "📊" },
+            { q: "ஒரு மூட்டை நெல் விலை எவ்வளவு?", icon: "💰" },
+            { q: "ஈரப்பதம் கழிவு எவ்வளவு?", icon: "🌾" },
             { q: "என் டோக்கன் எண் என்ன?", icon: "🎫" },
-            { q: "இன்றைய நெல் கொள்முதல் விலை என்ன?", icon: "💰" },
             { q: "எனக்கு பணம் எப்போ வரும்?", icon: "🏦" },
-            { q: "இன்னைக்கு மழை வருமா?", icon: "🌧️" },
             { q: "இட ஒதுக்கீடு செய்ய வேண்டும்", icon: "📅" },
           ].map(({ q, icon }) => (
             <button
