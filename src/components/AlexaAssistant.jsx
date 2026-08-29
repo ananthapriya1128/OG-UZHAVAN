@@ -1,65 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useI18n } from "../i18n/I18nContext";
 import { useNavigate } from "react-router-dom";
-import { getCurrentBooking, getMockServingToken, getAllMspRates } from "../firebase/firestoreService";
+import { getCurrentFarmer, getCurrentBooking, getMockServingToken } from "../firebase/firestoreService";
+import { queryAIMentor } from "../services/aiMentorService";
 
 const LANG_MAP = { ta:"ta-IN", en:"en-IN", hi:"hi-IN", te:"te-IN" };
-
-// Deep Rural Tamil Dialect and Multi-lingual Intent Detection Engine
-function detectIntent(text, lang) {
-  const t = text.toLowerCase();
-
-  // 1. Token & Queue Status
-  if (
-    t.includes("டோக்கன்") || t.includes("token") || t.includes("வரிசை") || 
-    t.includes("எப்போ போகணும்") || t.includes("என் எண்") || t.includes("நிலை") ||
-    t.includes("status") || t.includes("queue") || t.includes("my turn") || t.includes("waiting")
-  ) {
-    return "check_token";
-  }
-
-  // 2. MSP & Paddy Price
-  if (
-    t.includes("விலை") || t.includes("ரேட்") || t.includes("rate") || t.includes("msp") || 
-    t.includes("price") || t.includes("குவிண்டால்") || t.includes("பணம் எவ்வளவு") || t.includes("விவசாய விலை")
-  ) {
-    return "check_msp";
-  }
-
-  // 3. Payment & DBT Timeline
-  if (
-    t.includes("பணம் எப்போ") || t.includes("வரவு") || t.includes("payment") || 
-    t.includes("வங்கி") || t.includes("dbt") || t.includes("bank") || t.includes("account") || t.includes("காசு")
-  ) {
-    return "check_payment";
-  }
-
-  // 4. Weather & Rain Alert
-  if (
-    t.includes("மழை") || t.includes("வானிலை") || t.includes("ஈரப்பதம்") || 
-    t.includes("weather") || t.includes("rain") || t.includes("moisture")
-  ) {
-    return "check_weather";
-  }
-
-  // 5. Slot Booking
-  if (
-    t.includes("புக்") || t.includes("பதிவு") || t.includes("slot") || 
-    t.includes("book") || t.includes("booking") || t.includes("இடம்") || t.includes("நேரம் ஒதுக்கீடு")
-  ) {
-    return "book_slot";
-  }
-
-  // 6. Grievance & Complaint
-  if (
-    t.includes("புகார்") || t.includes("பிரச்சனை") || t.includes("complaint") || 
-    t.includes("grievance") || t.includes("problem") || t.includes("உதவி")
-  ) {
-    return "raise_grievance";
-  }
-
-  return "general";
-}
 
 export default function AlexaAssistant({ open, onClose }) {
   const { t, lang } = useI18n();
@@ -89,63 +34,29 @@ export default function AlexaAssistant({ open, onClose }) {
   }, [lang]);
 
   const handleIntent = useCallback(async (text) => {
-    const intent = detectIntent(text, lang);
-    setPhase("responding");
+    setPhase("thinking");
 
+    const farmer = getCurrentFarmer();
     const curBooking = getCurrentBooking();
     const serving = getMockServingToken();
-    let msg = "";
-    let route = null;
 
-    switch (intent) {
-      case "check_token":
-        if (curBooking) {
-          const ahead = Math.max(0, curBooking.tokenNumber - serving);
-          msg = `வணக்கம்! உங்கள் டோக்கன் எண் #${curBooking.tokenNumber}. மையம்: ${curBooking.dpcName}. தற்போது #${serving} அழைக்கப்படுகிறது. உங்களுக்கு முன் ${ahead} விவசாயிகள் உள்ளனர்.`;
-          route = "/farmer/token";
-        } else {
-          msg = "உங்களிடம் தற்போது முன்பதிவு இல்லை. உடனடியாக முன்பதிவு செய்ய 'இட ஒதுக்கீடு' பக்கத்திற்கு செல்கிறேன்.";
-          route = "/farmer/booking";
-        }
-        break;
+    const result = await queryAIMentor({
+      query: text,
+      lang,
+      farmer,
+      booking: curBooking,
+      servingToken: serving
+    });
 
-      case "check_msp":
-        msg = "இன்றைய தமிழ்நாடு அரசு நேரடி நெல் கொள்முதல் விலை: வெள்ளை பொன்னி குவிண்டாலுக்கு ₹2,183, தரம் ஏ ரகம் குவிண்டாலுக்கு ₹2,203 ஆகும். ஈர்ப்பு கழிவு 17 சதவீதத்திற்குள் பூஜ்ஜியம்.";
-        route = "/farmer/msp";
-        break;
+    setPhase("responding");
+    setResponse(result.text);
+    speak(result.text);
 
-      case "check_payment":
-        msg = "கொள்முதல் முடிந்த 48 மணி நேரத்திற்குள் DBT மூலம் உங்கள் ஆதார் இணைக்கப்பட்ட வங்கிக் கணக்கிற்கு பணம் நேரடியாக வரவு வைக்கப்படும்.";
-        route = "/farmer";
-        break;
-
-      case "check_weather":
-        msg = "காவிரி டெல்டா மண்டலத்தில் இன்று வானிலை தெளிவாக உள்ளது. உங்கள் நெல்லின் ஈரப்பதம் 17 சதவீதத்திற்குள் இருப்பதை உறுதி செய்து DPC-க்கு கொண்டு வாருங்கள்.";
-        break;
-
-      case "book_slot":
-        msg = "நிச்சயமாக! உழவர் நேரடி நெல் கொள்முதல் முன்பதிவு பக்கத்திற்கு அழைத்துச் செல்கிறேன்.";
-        route = "/farmer/booking";
-        break;
-
-      case "raise_grievance":
-        msg = "உங்கள் புகாரை பதிவு செய்ய குறைதீர்ப்பு பக்கத்திற்கு அழைத்துச் செல்கிறேன். 72 மணி நேரத்திற்குள் தீர்வு காணப்படும்.";
-        route = "/farmer/grievance";
-        break;
-
-      default:
-        msg = "மன்னிக்கவும், உங்கள் குரல் சரியாக புரியவில்லை. டோக்கன் எண், இன்றைய விலை, அல்லது முன்பதிவு பற்றி என்னிடம் கேளுங்கள்.";
-        break;
-    }
-
-    setResponse(msg);
-    speak(msg);
-
-    if (route) {
+    if (result.actionRoute) {
       setTimeout(() => {
         onClose();
-        navigate(route);
-      }, 3500);
+        navigate(result.actionRoute);
+      }, 3800);
     }
   }, [lang, speak, navigate, onClose]);
 
