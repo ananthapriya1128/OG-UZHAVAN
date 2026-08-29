@@ -1,0 +1,12 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getDpcSession, resolveGrievance, subscribeToAllGrievances } from "../../firebase/firestoreService";
+import { useI18n } from "../../i18n/I18nContext";
+
+export default function DpcGrievances() {
+  const { t } = useI18n(); const navigate = useNavigate(); const [session] = useState(getDpcSession); const [items, setItems] = useState([]); const [notes, setNotes] = useState({});
+  useEffect(() => { if (!session) { navigate("/dpc", { replace:true }); return; } return subscribeToAllGrievances(session.dpcId, setItems); }, [session, navigate]);
+  if (!session) return null;
+  async function resolve(id) { await resolveGrievance(id, notes[id] || "Resolved by DPC officer."); setItems((old) => old.map((item) => item.id === id ? { ...item, status:"resolved", resolutionNotes:notes[id] || "Resolved by DPC officer." } : item)); }
+  return <main style={{ maxWidth:560, margin:"0 auto" }}><header style={{ background:"#5A1FAF", color:"white", padding:"var(--sp-5)", display:"flex", alignItems:"center", gap:12 }}><button onClick={() => navigate("/dpc/dashboard")} style={{ color:"inherit", fontSize:22 }}>←</button><h1 style={{ color:"inherit" }}>📝 {t("grievance_title")}</h1></header><section style={{ padding:"var(--sp-4)", display:"grid", gap:"var(--sp-3)" }}>{items.length === 0 && <p>No grievances for this DPC.</p>}{items.map((item) => <article key={item.id} style={{ background:"var(--paper)", padding:"var(--sp-4)", borderRadius:"var(--r-md)", boxShadow:"var(--sh-sm)" }}><div style={{ display:"flex", justifyContent:"space-between", gap:8 }}><strong>{t("grievance_" + item.category)}</strong><span style={{ color:item.status === "resolved" ? "var(--success-500)" : "var(--warning-500)", fontWeight:700 }}>{t("grievance_" + item.status)}</span></div><p>{item.description}</p>{item.status === "resolved" ? <small>✓ {item.resolutionNotes}</small> : <><textarea aria-label={t("resolution_notes")} value={notes[item.id] || ""} onChange={(e) => setNotes((old) => ({ ...old, [item.id]:e.target.value }))} placeholder={t("resolution_notes")} style={{ width:"100%", minHeight:72, padding:8, borderRadius:"var(--r-sm)", border:"1px solid var(--tarpaulin-300)" }} /><button onClick={() => resolve(item.id)} style={{ marginTop:8, minHeight:42, background:"var(--success-500)", color:"white", borderRadius:"var(--r-sm)", padding:"0 16px", fontWeight:700 }}>{t("resolve")}</button></>}</article>)}</section></main>;
+}

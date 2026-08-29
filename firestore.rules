@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isDpcOfficer() { return request.auth != null && request.auth.token.role == 'dpc_officer'; }
+    function isDistrictOfficer() { return request.auth != null && request.auth.token.role == 'district_officer'; }
+    function isStateAdmin() { return request.auth != null && request.auth.token.role == 'state_admin'; }
+    function isOfficer() { return isDpcOfficer() || isDistrictOfficer() || isStateAdmin(); }
+    function ownUid()    { return request.auth.uid; }
+    function sameDistrict() { return isDistrictOfficer() && resource.data.districtId == request.auth.token.districtId; }
+
+    match /farmers/{farmerId} {
+      allow read:  if request.auth != null && (farmerId == ownUid() || sameDistrict() || isStateAdmin());
+      allow write: if request.auth != null && farmerId == ownUid()
+                    && request.writeKeys().hasOnly([
+                        'name','mobile','village','district','state',
+                        'aadhaarMasked','aadhaarVerified',
+                        'rationCardNumber','rationCardType',
+                        'landDetails','cropDetails',
+                        'vaoCertificateUrl','vaoVerificationStatus',
+                        'registrationStatus'
+                      ]);
+      allow update: if isOfficer() && request.writeKeys().hasOnly(['vaoVerificationStatus']);
+    }
+
+    match /dpc_centres/{centreId} {
+      allow read:  if true;
+      allow write: if isDpcOfficer() || sameDistrict() || isStateAdmin();
+    }
+
+    match /districts/{districtId} {
+      allow read: if isStateAdmin() || (isDistrictOfficer() && request.auth.token.districtId == districtId);
+      allow write: if isStateAdmin();
+    }
+
+    match /msp_rates/{rateId} {
+      allow read: if true;
+      allow write: if isOfficer();
+    }
+
+    match /grievances/{grievanceId} {
+      allow read: if request.auth != null && (resource.data.farmerId == ownUid() || sameDistrict() || isStateAdmin());
+      allow create: if request.auth != null
+                    && request.resource.data.farmerId == ownUid()
+                    && request.resource.data.dpcId is string
+                    && request.resource.data.description is string;
+      allow update: if (isDpcOfficer() || sameDistrict() || isStateAdmin())
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['status', 'resolutionNotes', 'resolvedAt']);
+    }
+
+    match /bookings/{bookingId} {
+      function farmerOwner() { return request.auth != null && resource.data.farmerId == ownUid(); }
+      allow read:  if request.auth != null && (farmerOwner() || sameDistrict() || isStateAdmin());
+      allow create: if request.auth != null
+                    && request.resource.data.farmerId == ownUid()
+                    && request.resource.data.keys().hasOnly([
+                        'farmerId','centreId','slotTime','tokenNumber',
+                        'status','queuePosition','pipelineStage','createdAt'
+                      ]);
+      allow update: if farmerOwner()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status == 'cancelled';
+      allow update: if isDpcOfficer() || sameDistrict() || isStateAdmin();
+    }
+
+    match /officers/{uid} {
+      allow read:  if isOfficer();
+      allow write: if isOfficer();
+    }
+
+  }
+}

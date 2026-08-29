@@ -1,0 +1,89 @@
+:root {
+  --paddy-gold-50:  #FBF3DC;
+  --paddy-gold-100: #F5E5B0;
+  --paddy-gold-200: #EBCF75;
+  --paddy-gold-300: #DDB147;
+  --paddy-gold-500: #C98A1E;
+  --paddy-gold-700: #9E6512;
+
+  --earth-50:  #FAF2E7;
+  --earth-100: #F0D9B8;
+  --earth-300: #C89A5B;
+  --earth-500: #8B5A2B;
+  --earth-700: #4A2D0E;
+
+  --tarpaulin-50:  #EEF1F3;
+  --tarpaulin-100: #D7DEE2;
+  --tarpaulin-300: #94A6B0;
+  --tarpaulin-500: #5C6F7A;
+  --tarpaulin-700: #34424A;
+
+  --vermilion-500: #C2251C;
+  --vermilion-600: #A01D15;
+  --marigold-500:  #F59E0B;
+
+  --ink-900: #14100A;
+  --ink-700: #2E1F0E;
+  --ink-500: #4A3525;
+  --paper:    #FFF9EC;
+  --paper-2:  #FBF3DC;
+  --white:    #FFFFFF;
+
+  --success-500: #3C7A1E;
+  --warning-500: #C77700;
+  --danger-500:  #B42318;
+
+  --font-display: 'Hind Madurai', 'Noto Sans Tamil', system-ui, sans-serif;
+  --font-body:    'Noto Sans Tamil', 'Hind Madurai', system-ui, sans-serif;
+  --font-mono:    'Roboto Mono', ui-monospace, monospace;
+
+  --fs-xs:  12px;
+  --fs-sm:  14px;
+  --fs-md:  16px;
+  --fs-lg:  18px;
+  --fs-xl:  22px;
+  --fs-2xl: 28px;
+  --fs-3xl: 36px;
+
+  --lh-tight: 1.2;
+  --lh-snug:  1.35;
+  --lh-normal:1.5;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-token: 2px;
+
+  --sh-sm: 0 1px 2px rgba(26,18,8,.12), 0 1px 3px rgba(26,18,8,.08);
+  --sh-md: 0 4px 8px rgba(26,18,8,.14), 0 2px 4px rgba(26,18,8,.08);
+  --sh-lg: 0 10px 20px rgba(26,18,8,.16), 0 4px 8px rgba(26,18,8,.10);
+  --sh-stamp: 0 0 0 2px var(--vermilion-500), 0 2px 6px rgba(194,37,28,.35);
+
+  --touch-target: 48px;
+  --content-max: 560px;
+
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --dur-fast: 120ms;
+  --dur-med:  220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+:focus-visible {
+  outline: 3px solid var(--vermilion-500);
+  outline-offset: 2px;
+  border-radius: var(--r-md);
+}

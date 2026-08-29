@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOfficer() { return request.auth != null && request.auth.token.role == 'officer'; }
+
+    match /farmers/{farmerId}/{allPaths=**} {
+      allow read:  if request.auth != null && (farmerId == request.auth.uid || isOfficer());
+      allow write: if request.auth != null && farmerId == request.auth.uid
+                    && request.resource.size < 10 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+    }
+
+  }
+}

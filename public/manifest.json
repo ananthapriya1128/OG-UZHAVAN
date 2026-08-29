@@ -1,0 +1,17 @@
+{
+  "name": "OG Uzhavan — ஓ ஜி உழவன்",
+  "short_name": "OG Uzhavan",
+  "description": "Tamil Nadu Official Direct Paddy Procurement & Farmer Portal (TNCSC)",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF3DC",
+  "theme_color": "#1B3B2B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
