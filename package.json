@@ -10,6 +10,7 @@
     "host": "vite --host"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "firebase": "^10.7.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
